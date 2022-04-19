@@ -22,10 +22,10 @@ COL_FEES_EUR = "Gebühren-EUR"
 COL_REVENUE_USD = "Ertrag-USD"
 COL_REVENUE_EUR = "Ertrag-EUR"
 
-TYPE_STOCK = "Aktien"
-TYPE_CFD = "CFD"
+# TYPE_STOCK = "Aktien"
+# TYPE_CFD = "CFD"
 
-def calcDetailedTable(transactionsReportDf, closedPositionsDf):
+def calcDetailedTable(accountActivityDf, closedPositionsDf):
     resultColumns = [COL_OPEN, COL_CLOSED, COL_INSTRUMENT, COL_TYPE, COL_UNITS, COL_OPEN_RATE, COL_CLOSE_RATE, COL_CLOSE_CURRENCY, 
                     COL_PROFIT_USD, COL_PROFIT_EUR, COL_INVERTING_AMOUNT, COL_PROFIT_EXCHANGE_RATE, COL_DIVIDENDS_USD,
                     COL_DIVIDENDS_EUR, COL_FEES_USD, COL_FEES_EUR, COL_REVENUE_USD, COL_REVENUE_EUR]
@@ -34,23 +34,23 @@ def calcDetailedTable(transactionsReportDf, closedPositionsDf):
     resultTable = pd.DataFrame(columns=resultColumns, index=closedPositionsDf.index)
     for index, row in closedPositionsDf.iterrows():
         positionId = row['Position ID']
-        currency = findCurrencyOfPositionId(transactionsReportDf, positionId)
+        currency = findCurrencyOfPositionId(accountActivityDf, positionId)
         openDate = parseDate(row['Open Date'])
         closeDate = parseDate(row['Close Date'])
-        profitUSD = atof(row['Profit'])
+        profitUSD = parseFloat(row['Profit'])
         profitEUR = usdToEur(closeDate, profitUSD)
 
-        amountUSD = atof(row['Amount'])
+        amountUSD = parseFloat(row['Amount'])
         amountBeginEUR = usdToEur(openDate, amountUSD)
         amountEndEUR = usdToEur(closeDate, amountUSD)
 
         wKursGW = amountEndEUR - amountBeginEUR
 
-        dividendRows = dividendRowsOfPosition(transactionsReportDf, positionId)
+        dividendRows = dividendRowsOfPosition(accountActivityDf, positionId)
         dividendsUSD = calculateRowsInUsd(dividendRows)
         dividendsEUR = calculateRowsInEur(dividendRows)
 
-        feeRows = feeRowsOfPosition(transactionsReportDf, positionId)
+        feeRows = feeRowsOfPosition(accountActivityDf, positionId)
         feesUSD = calculateRowsInUsd(feeRows)
         feesEUR = calculateRowsInEur(feeRows)
 
@@ -61,14 +61,14 @@ def calcDetailedTable(transactionsReportDf, closedPositionsDf):
         result[COL_OPEN] = row['Open Date']
         result[COL_CLOSED] = row['Close Date']
         result[COL_INSTRUMENT] = row['Action']
-        result[COL_TYPE] = TYPE_STOCK if (row['Is Real'] == "Real") else TYPE_CFD
+        result[COL_TYPE] = row['Type']
         result[COL_UNITS] = row['Units']
         result[COL_OPEN_RATE] = row['Open Rate']
         result[COL_CLOSE_RATE] = row['Close Rate']
         result[COL_CLOSE_CURRENCY] = currency
         result[COL_PROFIT_USD] = profitUSD
         result[COL_PROFIT_EUR] = profitEUR
-        result[COL_INVERTING_AMOUNT] = findInvertingAmountOfPositionId(transactionsReportDf, positionId)
+        result[COL_INVERTING_AMOUNT] = findInvertingAmountOfPositionId(accountActivityDf, positionId)
         result[COL_PROFIT_EXCHANGE_RATE] = wKursGW
         result[COL_DIVIDENDS_USD] = dividendsUSD
         result[COL_DIVIDENDS_EUR] = dividendsEUR
@@ -80,25 +80,43 @@ def calcDetailedTable(transactionsReportDf, closedPositionsDf):
         resultTable.iloc[index] = result
 
     return resultTable
+
     
-def dividendRowsOfPosition(transactionsReportDf, positionId):
-    return transactionsReportDf.loc[(transactionsReportDf['Position ID'] == positionId) & (
-        transactionsReportDf['Details'] == "Payment caused by dividend")]
+def dividendRowsOfPosition(accountActivityDf, positionId):
+    rows = rowsOfPosition(accountActivityDf, positionId)
+    return rows[rows['Details'].str.contains("(?i)dividend")] # (?i) ignores case
+    #return accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (
+    #    accountActivityDf['Details'] == "Payment caused by dividend")]
 
-def feeRowsOfPosition(transactionsReportDf, positionId):
-    return transactionsReportDf.loc[(transactionsReportDf['Position ID'] == positionId) & (
-        transactionsReportDf['Details'] == "Over night fee")]
+def feeRowsOfPosition(accountActivityDf, positionId):
+    rows = rowsOfPosition(accountActivityDf, positionId)
+    # df[df['month'].str.contains('Ju')
+    return rows[rows['Details'].str.contains("(?i)fee")]
+    #return accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (
+    #    accountActivityDf['Details'] == "Over night fee")]
 
-def findCurrencyOfPositionId(transactionsReportDf, positionId):
-    details = transactionsReportDf.loc[transactionsReportDf['Position ID'] == positionId].iloc[0]['Details']
+def parseFloat(value):
+    if isinstance(value, float):
+        return value
+    return atof(value)
+
+def rowsOfPosition(accountActivityDf, positionId):
+    return accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId)]
+
+def findCurrencyOfPositionId(accountActivityDf, positionId):
+    details = accountActivityDf.loc[accountActivityDf['Position ID'] == positionId].iloc[0]['Details']
     currency = details.split('/')[1]
     return currency
 
-def findInvertingAmountOfPositionId(transactionsReportDf, positionId):
-    value = transactionsReportDf.loc[(transactionsReportDf['Position ID'] == positionId) & (transactionsReportDf['Type'] == "Open Position")].iloc[0]['Amount']
+def findInvertingAmountOfPositionId(accountActivityDf, positionId):
+    value = accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (accountActivityDf['Type'] == "Open Position")].iloc[0]['Amount']
     return locale.str(value)
 
-def parseDate(date):
+def parseDate(date): #example: 18/10/2021 13:32:48
+    ddmmyyDate = date.split(" ")[0].split("/")
+    return ddmmyyDate[2] + "-" + ddmmyyDate[1] + "-" + ddmmyyDate[0]
+
+def parseGermanDate(date): #example: 26.03.2020 08:00
     ddmmyyDate = date.split(" ")[0].split(".")
     return ddmmyyDate[2] + "-" + ddmmyyDate[1] + "-" + ddmmyyDate[0]
 

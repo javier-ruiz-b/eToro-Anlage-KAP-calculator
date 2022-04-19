@@ -11,10 +11,10 @@ setlocale(LC_NUMERIC, 'de_DE.UTF-8')
 # based on trade.report
 
 accountStatementFilename = " ".join(sys.argv[1:])
-closedPositions = pd.read_excel(accountStatementFilename, 'Closed Positions', engine='openpyxl')
-transactionsReport = pd.read_excel(accountStatementFilename, 'Transactions Report', engine='openpyxl')
+closedPositionsTable = pd.read_excel(accountStatementFilename, 'Closed Positions', engine='openpyxl')
+accountActivityTable = pd.read_excel(accountStatementFilename, 'Account Activity', engine='openpyxl')
 
-detailedTable = calcDetailedTable(transactionsReport, closedPositions)
+detailedTable = calcDetailedTable(accountActivityTable, closedPositionsTable)
 print_detailed_table(detailedTable)
 detailedTable.to_csv('detailedTable.csv')
 calcKapSummary(detailedTable)

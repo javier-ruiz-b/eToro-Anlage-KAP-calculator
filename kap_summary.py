@@ -1,3 +1,4 @@
+from  transaction_type import TransactionType
 import detailed_table
 import pandas as pd
 from locale import atof
@@ -46,7 +47,7 @@ def calcKapSummary(detailedTable):
         revenueEUR = row[detailed_table.COL_REVENUE_EUR]
         dividend = row[detailed_table.COL_DIVIDENDS_EUR]
         fees = row[detailed_table.COL_FEES_EUR]
-        if row[detailed_table.COL_TYPE] == detailed_table.TYPE_STOCK:
+        if row[detailed_table.COL_TYPE] == TransactionType.Stocks:
             result[COL_PROFIT_STOCKS] += revenueEUR - dividend
             result[COL_DIVIDENDS_STOCKS] += dividend
             if revenueEUR > 0:
@@ -54,7 +55,7 @@ def calcKapSummary(detailedTable):
             else:
                 result[COL_LOSS_ON_SALE_STOCKS] += revenueEUR - dividend
 
-        elif row[detailed_table.COL_TYPE] == detailed_table.TYPE_CFD:
+        elif row[detailed_table.COL_TYPE] == TransactionType.CFD:
             result[COL_PROFIT_CFDS] += revenueEUR - fees
             result[COL_FEES_CFDS] += fees
             result[COL_FEES_ON_SALE_CFDS] += fees
@@ -62,6 +63,10 @@ def calcKapSummary(detailedTable):
                 result[COL_PROFIT_ON_SALE_CFDS] += revenueEUR - fees
             else:
                 result[COL_LOSS_ON_SALE_CFDS] += revenueEUR - fees
+        # elif row[detailed_table.COL_TYPE] == TransactionType.Crypto:
+        # elif row[detailed_table.COL_TYPE] == TransactionType.ETF:
+        else:
+            raise Exception("unimplemented type:"+ row[detailed_table.COL_TYPE] )
             
     # print(json.dumps(result, indent=1))
     print(json.dumps(roundTo2Decimals(result), ensure_ascii=False, indent=4))
