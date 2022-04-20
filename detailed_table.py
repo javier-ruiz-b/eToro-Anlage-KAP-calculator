@@ -21,16 +21,12 @@ COL_FEES_USD = "Gebühren-USD"
 COL_FEES_EUR = "Gebühren-EUR"
 COL_REVENUE_USD = "Ertrag-USD"
 COL_REVENUE_EUR = "Ertrag-EUR"
-
-# TYPE_STOCK = "Aktien"
-# TYPE_CFD = "CFD"
+COL_ISIN = "ISIN"
 
 def calcDetailedTable(accountActivityDf, closedPositionsDf):
     resultColumns = [COL_OPEN, COL_CLOSED, COL_INSTRUMENT, COL_TYPE, COL_UNITS, COL_OPEN_RATE, COL_CLOSE_RATE, COL_CLOSE_CURRENCY, 
                     COL_PROFIT_USD, COL_PROFIT_EUR, COL_INVERTING_AMOUNT, COL_PROFIT_EXCHANGE_RATE, COL_DIVIDENDS_USD,
-                    COL_DIVIDENDS_EUR, COL_FEES_USD, COL_FEES_EUR, COL_REVENUE_USD, COL_REVENUE_EUR]
-    # resultColumns = ["Eröffnet", "Geschlossen", "Instrument", "Anteile", "Öffnungskurs", "Schlusskurs", "Schlusskurs-Währung",
-    #             "Profit-USD", "Profit-EUR", "Invest. Betrag", "W-Kurs G/V", "Dividenden-USD", "Dividenden-EUR", "Gebühren-USD", "Gebühren-EUR", "Ertrag-USD", "Ertrag-EUR"]
+                    COL_DIVIDENDS_EUR, COL_FEES_USD, COL_FEES_EUR, COL_REVENUE_USD, COL_REVENUE_EUR, COL_ISIN]
     resultTable = pd.DataFrame(columns=resultColumns, index=closedPositionsDf.index)
     for index, row in closedPositionsDf.iterrows():
         positionId = row['Position ID']
@@ -76,6 +72,7 @@ def calcDetailedTable(accountActivityDf, closedPositionsDf):
         result[COL_FEES_EUR] = feesEUR
         result[COL_REVENUE_USD] = revenueUSD
         result[COL_REVENUE_EUR] = revenueEUR
+        result[COL_ISIN] = row['ISIN']
 
         resultTable.iloc[index] = result
 
@@ -109,7 +106,13 @@ def findCurrencyOfPositionId(accountActivityDf, positionId):
     return currency
 
 def findInvertingAmountOfPositionId(accountActivityDf, positionId):
-    value = accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (accountActivityDf['Type'] == "Open Position")].iloc[0]['Amount']
+    row = accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (accountActivityDf['Type'] == "Open Position")]
+    if len(row) != 1:
+        print("Warning: Could not find the inverting amount of position ID " + str(positionId))
+        return ""
+
+
+    value = row.iloc[0]['Amount']
     return locale.str(value)
 
 def parseDate(date): #example: 18/10/2021 13:32:48
@@ -124,7 +127,7 @@ def calculateRowsInEur(rows):
     result = 0.0
     for _, row in rows.iterrows():
         amountUSD = row.loc['Amount']
-        date = row.loc['Date'].split(" ")[0]
+        date = parseDate(row.loc['Date'])
         result += usdToEur(date, amountUSD)
     return result
 

@@ -1,7 +1,7 @@
 import pandas as pd
 from locale import atof
 
-usdToEurDf = pd.read_csv("BBEX3.D.USD.EUR.BB.AC.000.csv", sep=';', names=['date', 'value','comments'])
+usdToEurDf = pd.read_csv("BBEX3.D.USD.EUR.BB.AC.000.csv", sep=';', names=['date', 'value', 'comments'])
 
 def findValidRowByDate(date):
     while True:
@@ -10,7 +10,13 @@ def findValidRowByDate(date):
             return rows.iloc[0]
 
 def usdToEur(date, valueInUSD):
-    value = usdToEurDf.loc[usdToEurDf['date'] == date].iloc[0]['value']
+    value = ''
+    for i in range(0, 3):
+        value = usdToEurDf.shift(i)[usdToEurDf['date'] == date].iloc[0]['value']
+        if value == ".":
+            continue
+        break
+
     value = atof(value)
     return valueInUSD / value
 
