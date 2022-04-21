@@ -1,11 +1,10 @@
 from re import S
-import re
-
 from numpy import isin
 from  transaction_type import TransactionType
 import detailed_table
 import pandas as pd
 from locale import atof
+import adjustments
 import json
 
 # KAP 18
@@ -18,6 +17,7 @@ COL_PROFIT_CFDS = 'CFD G/V'
 COL_DIVIDENDS_CFDS = 'CFD Dividende'
 COL_FEES_CFDS = 'CFD Gebühren'
 COL_PROFIT_ETFS = 'ETF G/V'
+COL_ADJUSTMENTS = 'Sonstige Anpassungen'
 
 # KAP 20
 COL_PROFIT_ON_SALE_STOCKS = 'Aktien - Enthaltene Gewinne aus Aktienveräußerungen'
@@ -48,7 +48,7 @@ def roundTo2Decimals(dict):
         result[key] = round(dict[key], 2)
     return result
 
-def calcKapSummary(detailedTable):
+def calcKapSummary(detailedTable, adjustmentsDict):
     result = {}
     result[COL_PROFIT_STOCKS] = 0
     result[COL_DIVIDENDS_STOCKS] = 0
@@ -70,6 +70,8 @@ def calcKapSummary(detailedTable):
 
     result[COL_OPENING_PRICE_CRYPTO] = 0
     result[COL_CLOSING_PRICE_CRYPTO] = 0
+
+    result[COL_ADJUSTMENTS] = adjustmentsDict[adjustments.COL_ADJUSTMENTS_EUR]
 
 
     for _, row in detailedTable.iterrows():
@@ -121,19 +123,22 @@ def calcKapSummary(detailedTable):
             print("Warning: unimplemented type:"+ row[detailed_table.COL_TYPE])
             #raise Exception("unimplemented type:"+ row[detailed_table.COL_TYPE] )
             
+
+
     # print(json.dumps(result, indent=1))
     print(json.dumps(roundTo2Decimals(result), ensure_ascii=False, indent=4))
         
     print("\nAnlage KAP")
     kapResult = {}
     kapResult["18. Inländische Kapitalerträge"] = result[COL_PROFIT_IN_STOCKS]
-    kapResult["19. Ausländische Kapitalerträge"] = result[COL_PROFIT_STOCKS] + result[COL_DIVIDENDS_STOCKS] + result[COL_PROFIT_CFDS] + result[COL_FEES_CFDS] + result[COL_PROFIT_ETFS]
+    kapResult["19. Ausländische Kapitalerträge"] = result[COL_PROFIT_STOCKS] + result[COL_DIVIDENDS_STOCKS] + result[COL_PROFIT_CFDS] + result[COL_FEES_CFDS] + result[COL_PROFIT_ETFS] + result[COL_ADJUSTMENTS]
     kapResult["19.   - Ausländische Aktien G/W"] = result[COL_PROFIT_STOCKS] 
     kapResult["19.   - Ausländische Aktien Dividende"] = result[COL_DIVIDENDS_STOCKS]
     kapResult["19.   - Ausländische CFD G/W"] = result[COL_PROFIT_CFDS] 
     kapResult["19.   - Ausländische CFD Dividende"] = result[COL_DIVIDENDS_CFDS]
     kapResult["19.   - Ausländische CFD Gebühren"] = result[COL_FEES_CFDS]
     kapResult["19.   - Ausländische ETF G/W"] = result[COL_PROFIT_ETFS]
+    kapResult["19.   - Sonstige Anpassungen"] = result[COL_ADJUSTMENTS]
     kapResult["20. Enthaltene Gewinne aus Aktienveräußerungen"] = result[COL_PROFIT_ON_SALE_STOCKS] + result[COL_PROFIT_ON_SALE_CFDS]
     kapResult["22. Enthaltene Verluste ohne Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_FEES_ON_SALE_CFDS]
     kapResult["23. Enthaltene Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_STOCKS]

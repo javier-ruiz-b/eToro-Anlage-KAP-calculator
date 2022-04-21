@@ -1,5 +1,6 @@
 import pandas as pd
 from locale import atof
+from date import parseDate
 
 usdToEurDf = pd.read_csv("BBEX3.D.USD.EUR.BB.AC.000.csv", sep=';', names=['date', 'value', 'comments'])
 
@@ -25,3 +26,17 @@ def eurToUsd(date, valueInEUR):
     value = row['value']
     value = atof(value)
     return valueInEUR * value
+
+def calculateRowsInEur(rows):
+    result = 0.0
+    for _, row in rows.iterrows():
+        amountUSD = row.loc['Amount']
+        date = parseDate(row.loc['Date'])
+        result += usdToEur(date, amountUSD)
+    return result
+
+def calculateRowsInUsd(rows):
+    result = 0.0
+    for _, row in rows.iterrows():
+        result += row.loc['Amount']
+    return result

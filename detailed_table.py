@@ -1,7 +1,8 @@
 import pandas as pd
 import locale
 from locale import atof
-from exchange_rate import usdToEur, eurToUsd
+from exchange_rate import usdToEur, calculateRowsInEur, calculateRowsInUsd
+from date import parseDate
 
 COL_OPEN = "Eröffnet"
 COL_CLOSED = "Geschlossen"
@@ -81,16 +82,12 @@ def calcDetailedTable(accountActivityDf, closedPositionsDf):
     
 def dividendRowsOfPosition(accountActivityDf, positionId):
     rows = rowsOfPosition(accountActivityDf, positionId)
-    return rows[rows['Details'].str.contains("(?i)dividend")] # (?i) ignores case
-    #return accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (
-    #    accountActivityDf['Details'] == "Payment caused by dividend")]
+    dividendRows = rows[rows['Type'].str.contains("(?i)dividend$")]
+    return dividendRows
 
 def feeRowsOfPosition(accountActivityDf, positionId):
     rows = rowsOfPosition(accountActivityDf, positionId)
-    # df[df['month'].str.contains('Ju')
-    return rows[rows['Details'].str.contains("(?i)fee")]
-    #return accountActivityDf.loc[(accountActivityDf['Position ID'] == positionId) & (
-    #    accountActivityDf['Details'] == "Over night fee")]
+    return rows[rows['Type'].str.contains("(?i) fee$")]
 
 def parseFloat(value):
     if isinstance(value, float):
@@ -114,28 +111,6 @@ def findInvertingAmountOfPositionId(accountActivityDf, positionId):
 
     value = row.iloc[0]['Amount']
     return locale.str(value)
-
-def parseDate(date): #example: 18/10/2021 13:32:48
-    ddmmyyDate = date.split(" ")[0].split("/")
-    return ddmmyyDate[2] + "-" + ddmmyyDate[1] + "-" + ddmmyyDate[0]
-
-def parseGermanDate(date): #example: 26.03.2020 08:00
-    ddmmyyDate = date.split(" ")[0].split(".")
-    return ddmmyyDate[2] + "-" + ddmmyyDate[1] + "-" + ddmmyyDate[0]
-
-def calculateRowsInEur(rows):
-    result = 0.0
-    for _, row in rows.iterrows():
-        amountUSD = row.loc['Amount']
-        date = parseDate(row.loc['Date'])
-        result += usdToEur(date, amountUSD)
-    return result
-
-def calculateRowsInUsd(rows):
-    result = 0.0
-    for _, row in rows.iterrows():
-        result += row.loc['Amount']
-    return result
 
 def float2str(value):
     return locale.str(round(value, 2))
