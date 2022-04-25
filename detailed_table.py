@@ -64,7 +64,7 @@ def calcDetailedTable(accountActivityDf, closedPositionsDf):
         result[COL_CLOSE_RATE] = row['Close Rate']
         result[COL_CLOSE_CURRENCY] = currency
         result[COL_PROFIT_USD] = profitUSD
-        result[COL_PROFIT_EUR] = profitEUR
+        result[COL_PROFIT_EUR] = profitEUR + wKursGW
         result[COL_INVERTING_AMOUNT] = findInvertingAmountOfPositionId(accountActivityDf, positionId)
         result[COL_PROFIT_EXCHANGE_RATE] = wKursGW
         result[COL_DIVIDENDS_USD] = dividendsUSD

@@ -21,9 +21,11 @@ COL_ADJUSTMENTS = 'Sonstige Anpassungen'
 
 # KAP 20
 COL_PROFIT_ON_SALE_STOCKS = 'Aktien - Enthaltene Gewinne aus Aktienveräußerungen'
-
-COL_PROFIT_ON_SALE_CFDS = 'CFD - Enthaltene Gewinne aus Aktienveräußerungen'
 COL_PROFIT_ON_SALE_ETFS = 'ETF - Enthaltene Gewinne aus Aktienveräußerungen'
+
+# KAP 21
+COL_POSITIVE_FEES_ON_SALE_CFDS = 'CFD positive Gebühren'
+COL_POSITIVE_VALUES_CFDS = 'CFD positive G/W'
 
 # KAP 22
 COL_LOSS_ON_SALE_CFDS = 'CFD G/W - darin enthaltene Verluste aus Kapitalerträgen ohne Aktienveräußerung'
@@ -60,9 +62,10 @@ def calcKapSummary(detailedTable, adjustmentsDict):
     result[COL_PROFIT_CFDS] = 0
     result[COL_DIVIDENDS_CFDS] = 0
     result[COL_FEES_CFDS] = 0
-    result[COL_PROFIT_ON_SALE_CFDS] = 0
+    result[COL_POSITIVE_VALUES_CFDS] = 0
     result[COL_LOSS_ON_SALE_CFDS] = 0
     result[COL_FEES_ON_SALE_CFDS] = 0
+    result[COL_POSITIVE_FEES_ON_SALE_CFDS] = 0
 
     result[COL_PROFIT_ETFS] = 0
     result[COL_PROFIT_ON_SALE_ETFS] = 0
@@ -75,38 +78,42 @@ def calcKapSummary(detailedTable, adjustmentsDict):
 
 
     for _, row in detailedTable.iterrows():
+        profitEUR = row[detailed_table.COL_PROFIT_EUR]
         revenueEUR = row[detailed_table.COL_REVENUE_EUR]
         dividend = row[detailed_table.COL_DIVIDENDS_EUR]
         fees = row[detailed_table.COL_FEES_EUR]
         type = row[detailed_table.COL_TYPE]
         if type == TransactionType.Stocks:
             isin = row[detailed_table.COL_ISIN]
-            if isin.startswith('DE'):
-                result[COL_PROFIT_IN_STOCKS] += revenueEUR - dividend
+            if profitEUR > 0:
+                result[COL_PROFIT_ON_SALE_STOCKS] += profitEUR
             else:
-                result[COL_PROFIT_STOCKS] += revenueEUR - dividend
+                result[COL_LOSS_ON_SALE_STOCKS] += profitEUR
+            if isin.startswith('DE'):
+                result[COL_PROFIT_IN_STOCKS] += profitEUR
+            else:
+                result[COL_PROFIT_STOCKS] += profitEUR
                 result[COL_DIVIDENDS_STOCKS] += dividend
-                if revenueEUR > 0:
-                    result[COL_PROFIT_ON_SALE_STOCKS] += revenueEUR - dividend
-                else:
-                    result[COL_LOSS_ON_SALE_STOCKS] += revenueEUR - dividend
 
         elif type == TransactionType.CFD:
-            result[COL_PROFIT_CFDS] += revenueEUR - fees - dividend
+            result[COL_PROFIT_CFDS] += profitEUR
             result[COL_DIVIDENDS_CFDS] += dividend
             result[COL_FEES_CFDS] += fees
             result[COL_FEES_ON_SALE_CFDS] += fees
-            if revenueEUR > 0:
-                result[COL_PROFIT_ON_SALE_CFDS] += revenueEUR - fees - dividend
+            if fees > 0:
+                result[COL_POSITIVE_FEES_ON_SALE_CFDS] += fees
+
+            if profitEUR > 0:
+                result[COL_POSITIVE_VALUES_CFDS] += profitEUR
             else:
-                result[COL_LOSS_ON_SALE_CFDS] += revenueEUR - fees - dividend
+                result[COL_LOSS_ON_SALE_CFDS] += profitEUR
 
         elif type == TransactionType.ETF:
-            result[COL_PROFIT_ETFS] += revenueEUR - fees
+            result[COL_PROFIT_ETFS] += profitEUR
             if revenueEUR > 0:
-                result[COL_PROFIT_ON_SALE_ETFS] += revenueEUR - fees
+                result[COL_PROFIT_ON_SALE_ETFS] += profitEUR
             else:
-                result[COL_LOSS_ON_SALE_ETFS] += revenueEUR - fees
+                result[COL_LOSS_ON_SALE_ETFS] += profitEUR
 
         elif type == TransactionType.Crypto:
             instrument = row[detailed_table.COL_INSTRUMENT].lower()
@@ -120,12 +127,9 @@ def calcKapSummary(detailedTable, adjustmentsDict):
             else:
                 print("Warning: Unknown prefix. expecting buy or sell: "+ instrument)
         else:
-            print("Warning: unimplemented type:"+ row[detailed_table.COL_TYPE])
-            #raise Exception("unimplemented type:"+ row[detailed_table.COL_TYPE] )
+            raise Exception("unimplemented type:"+ row[detailed_table.COL_TYPE] )
             
 
-
-    # print(json.dumps(result, indent=1))
     print(json.dumps(roundTo2Decimals(result), ensure_ascii=False, indent=4))
         
     print("\nAnlage KAP")
@@ -139,8 +143,16 @@ def calcKapSummary(detailedTable, adjustmentsDict):
     kapResult["19.   - Ausländische CFD Gebühren"] = result[COL_FEES_CFDS]
     kapResult["19.   - Ausländische ETF G/W"] = result[COL_PROFIT_ETFS]
     kapResult["19.   - Sonstige Anpassungen"] = result[COL_ADJUSTMENTS]
-    kapResult["20. Enthaltene Gewinne aus Aktienveräußerungen"] = result[COL_PROFIT_ON_SALE_STOCKS] + result[COL_PROFIT_ON_SALE_CFDS]
-    kapResult["22. Enthaltene Verluste ohne Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_FEES_ON_SALE_CFDS]
+    kapResult["20. Enthaltene Gewinne aus Aktienveräußerungen"] = result[COL_PROFIT_ON_SALE_STOCKS]
+    kapResult["20.   - Aktien G/V (positive Beiträge)"] = result[COL_PROFIT_ON_SALE_STOCKS] 
+    kapResult["21. Enthaltene Einkünfte aus Stillhalterprämien und Gewinne aus Termingeschäften"] = result[COL_POSITIVE_VALUES_CFDS] + result[COL_POSITIVE_FEES_ON_SALE_CFDS]
+    kapResult["21.   - CFD G/V (positive Beiträge)"] = result[COL_POSITIVE_VALUES_CFDS]
+    kapResult["21.   - CFD Gebühren (positive Beiträge)"] = result[COL_POSITIVE_FEES_ON_SALE_CFDS]
+    kapResult["22. Enthaltene Verluste ohne Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_FEES_ON_SALE_CFDS] # TODO!!
+    kapResult["22.   - CFD G/V (negative Beiträge)"] = result[COL_LOSS_ON_SALE_CFDS] 
+    # kapResult["22.   - CFD Dividends (negative Beiträge)"] = result[COL_NEGATIVE_DIVIDENDS_CFDS]
+    kapResult["22.   - CFD Gebühren (negative Beiträge)"] = result[COL_FEES_ON_SALE_CFDS] 
+    kapResult["22.   - ETF G/V (negative Beiträge)"] = result[COL_PROFIT_ETFS] 
     kapResult["23. Enthaltene Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_STOCKS]
 
     print(json.dumps(roundTo2Decimals(kapResult), ensure_ascii=False, indent=4))
