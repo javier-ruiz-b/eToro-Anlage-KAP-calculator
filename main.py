@@ -4,7 +4,6 @@ from detailed_table import *
 from kap_summary import *
 from print_table import *
 from locale import setlocale, LC_NUMERIC
-from dividends import calcDividends
 from adjustments import calcAdjustments
 
 setlocale(LC_NUMERIC, 'de_DE.UTF-8')
@@ -20,9 +19,6 @@ accountActivityTable = pd.read_excel(accountStatementFilename, 'Account Activity
 detailedTable = calcDetailedTable(accountActivityTable, closedPositionsTable)
 print_detailed_table(detailedTable)
 detailedTable.to_csv('detailedTable.csv')
-
-# dividends = calcDividends(accountActivityTable)
-# print(json.dumps(roundTo2Decimals(dividends), ensure_ascii=False, indent=4))
 
 adjustments = calcAdjustments(accountActivityTable)
 

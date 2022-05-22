@@ -25,21 +25,22 @@ COL_PROFIT_ON_SALE_ETFS = 'ETF - Enthaltene Gewinne aus Aktienveräußerungen'
 
 # KAP 21
 COL_POSITIVE_FEES_ON_SALE_CFDS = 'CFD positive Gebühren'
-COL_POSITIVE_VALUES_CFDS = 'CFD positive G/W'
+COL_PROFIT_ON_SALE_CFDS = 'CFD positive G/W'
 
 # KAP 22
 COL_LOSS_ON_SALE_CFDS = 'CFD G/W - darin enthaltene Verluste aus Kapitalerträgen ohne Aktienveräußerung'
-COL_FEES_ON_SALE_CFDS = 'CFD Gebühren - darin enthaltene Verluste aus Kapitalerträgen ohne Aktienveräußerung'
 COL_LOSS_ON_SALE_ETFS = 'ETF G/W - darin enthaltene Verluste aus Kapitalerträgen ohne Aktienveräußerung'
+COL_NEGATIVE_DIVIDENDS_CFDS = 'CFD negative Dividenden'
+COL_NEGATIVE_FEES_ON_SALE_CFDS = 'CFD negative Gebuhren'
 
 # KAP 23
 COL_LOSS_ON_SALE_STOCKS = 'Aktien G/W - Enthaltene Verluste aus Aktienveräußerungen'
 
 # SO 44
-COL_CLOSING_PRICE_CRYPTO = 'Crypto Schließungspreis'
+COL_INVERTING_CLOSE_CRYPTO = 'Crypto Schließungspreis'
 
 # SO 45
-COL_OPENING_PRICE_CRYPTO = 'Crypto Eröffnungsspreis'
+COL_INVERTING_OPEN_CRYPTO = 'Crypto Öffnungspreis'
 
 # SO 47 und 48
 COL_PROFIT_CRYPTO = 'Crypto G/V'
@@ -52,85 +53,46 @@ def roundTo2Decimals(dict):
 
 def calcKapSummary(detailedTable, adjustmentsDict):
     result = {}
-    result[COL_PROFIT_STOCKS] = 0
-    result[COL_DIVIDENDS_STOCKS] = 0
-    result[COL_PROFIT_ON_SALE_STOCKS] = 0
-    result[COL_LOSS_ON_SALE_STOCKS] = 0
 
-    result[COL_PROFIT_IN_STOCKS] = 0
+    stocksAll = detailedTable[(detailedTable['Type'] == 'Stocks')]
+    stocksAllProfit = stocksAll[detailed_table.COL_PROFIT_EUR]
+    result[COL_PROFIT_ON_SALE_STOCKS] = stocksAllProfit[stocksAllProfit > 0].sum()
 
-    result[COL_PROFIT_CFDS] = 0
-    result[COL_DIVIDENDS_CFDS] = 0
-    result[COL_FEES_CFDS] = 0
-    result[COL_POSITIVE_VALUES_CFDS] = 0
-    result[COL_LOSS_ON_SALE_CFDS] = 0
-    result[COL_FEES_ON_SALE_CFDS] = 0
-    result[COL_POSITIVE_FEES_ON_SALE_CFDS] = 0
+    stocks = detailedTable[(detailedTable['Type'] == 'Stocks') & (detailedTable['ISIN'].str.startswith('DE') == False)]
+    stocksProfit = stocks[detailed_table.COL_PROFIT_EUR]
+    result[COL_PROFIT_STOCKS] = stocksProfit.sum()
+    result[COL_LOSS_ON_SALE_STOCKS] = stocksProfit[stocksProfit < 0].sum()
+    result[COL_DIVIDENDS_STOCKS] =  stocks[detailed_table.COL_DIVIDENDS_EUR].sum()
 
-    result[COL_PROFIT_ETFS] = 0
-    result[COL_PROFIT_ON_SALE_ETFS] = 0
-    result[COL_LOSS_ON_SALE_ETFS] = 0
+    inlandStocks = detailedTable[(detailedTable['Type'] == 'Stocks') & detailedTable['ISIN'].str.startswith('DE')]
+    result[COL_PROFIT_IN_STOCKS] = inlandStocks[detailed_table.COL_PROFIT_EUR].sum()
 
-    result[COL_OPENING_PRICE_CRYPTO] = 0
-    result[COL_CLOSING_PRICE_CRYPTO] = 0
+    cfd = detailedTable[(detailedTable['Type'] == 'CFD')]
+    cfdProfit = cfd[detailed_table.COL_PROFIT_EUR]
+    result[COL_PROFIT_CFDS] = cfdProfit.sum()
+    result[COL_PROFIT_ON_SALE_CFDS] = cfdProfit[cfdProfit > 0].sum()
+    result[COL_LOSS_ON_SALE_CFDS] = cfdProfit[cfdProfit < 0].sum()
+    cfdDividends = cfd[detailed_table.COL_DIVIDENDS_EUR]
+    result[COL_DIVIDENDS_CFDS] = cfdDividends.sum()
+    result[COL_NEGATIVE_DIVIDENDS_CFDS] = cfdDividends[cfdDividends < 0].sum()
+    cfdFees = cfd[detailed_table.COL_FEES_EUR]
+    result[COL_FEES_CFDS] = cfdFees.sum()
+    result[COL_POSITIVE_FEES_ON_SALE_CFDS] = cfdFees[cfdFees > 0].sum()
+    result[COL_NEGATIVE_FEES_ON_SALE_CFDS] = cfdFees[cfdFees < 0].sum()
+    
+    profitEtf = detailedTable[(detailedTable['Type'] == 'ETF')][detailed_table.COL_PROFIT_EUR]
+    result[COL_PROFIT_ETFS] = profitEtf.sum()
+    result[COL_PROFIT_ON_SALE_ETFS] = profitEtf[profitEtf > 0].sum()
+    result[COL_LOSS_ON_SALE_ETFS] =  profitEtf[profitEtf < 0].sum()
+    
+    crypto = detailedTable[(detailedTable['Type'] == 'Crypto')]
+    result[COL_INVERTING_OPEN_CRYPTO] = crypto[detailed_table.COL_INVERTING_AMOUNT_EUR].sum()
+    result[COL_PROFIT_CRYPTO] = crypto[detailed_table.COL_PROFIT_EUR].sum()
+    result[COL_INVERTING_CLOSE_CRYPTO] =  result[COL_INVERTING_OPEN_CRYPTO] + result[COL_PROFIT_CRYPTO] 
 
     result[COL_ADJUSTMENTS] = adjustmentsDict[adjustments.COL_ADJUSTMENTS_EUR]
 
-
-    for _, row in detailedTable.iterrows():
-        profitEUR = row[detailed_table.COL_PROFIT_EUR]
-        revenueEUR = row[detailed_table.COL_REVENUE_EUR]
-        dividend = row[detailed_table.COL_DIVIDENDS_EUR]
-        fees = row[detailed_table.COL_FEES_EUR]
-        type = row[detailed_table.COL_TYPE]
-        if type == TransactionType.Stocks:
-            isin = row[detailed_table.COL_ISIN]
-            if profitEUR > 0:
-                result[COL_PROFIT_ON_SALE_STOCKS] += profitEUR
-            else:
-                result[COL_LOSS_ON_SALE_STOCKS] += profitEUR
-            if isin.startswith('DE'):
-                result[COL_PROFIT_IN_STOCKS] += profitEUR
-            else:
-                result[COL_PROFIT_STOCKS] += profitEUR
-                result[COL_DIVIDENDS_STOCKS] += dividend
-
-        elif type == TransactionType.CFD:
-            result[COL_PROFIT_CFDS] += profitEUR
-            result[COL_DIVIDENDS_CFDS] += dividend
-            result[COL_FEES_CFDS] += fees
-            result[COL_FEES_ON_SALE_CFDS] += fees
-            if fees > 0:
-                result[COL_POSITIVE_FEES_ON_SALE_CFDS] += fees
-
-            if profitEUR > 0:
-                result[COL_POSITIVE_VALUES_CFDS] += profitEUR
-            else:
-                result[COL_LOSS_ON_SALE_CFDS] += profitEUR
-
-        elif type == TransactionType.ETF:
-            result[COL_PROFIT_ETFS] += profitEUR
-            if revenueEUR > 0:
-                result[COL_PROFIT_ON_SALE_ETFS] += profitEUR
-            else:
-                result[COL_LOSS_ON_SALE_ETFS] += profitEUR
-
-        elif type == TransactionType.Crypto:
-            instrument = row[detailed_table.COL_INSTRUMENT].lower()
-            if instrument.startswith("buy "):
-                if revenueEUR > 0:
-                    result[COL_OPENING_PRICE_CRYPTO] += -revenueEUR
-                else:
-                    result[COL_CLOSING_PRICE_CRYPTO] += revenueEUR
-            elif instrument.startswith("sell "):
-                print("Warning: sell crypto not implemented")
-            else:
-                print("Warning: Unknown prefix. expecting buy or sell: "+ instrument)
-        else:
-            raise Exception("unimplemented type:"+ row[detailed_table.COL_TYPE] )
-            
-
-    print(json.dumps(roundTo2Decimals(result), ensure_ascii=False, indent=4))
+    # print(json.dumps(roundTo2Decimals(result), ensure_ascii=False, indent=4))
         
     print("\nAnlage KAP")
     kapResult = {}
@@ -145,28 +107,36 @@ def calcKapSummary(detailedTable, adjustmentsDict):
     kapResult["19.   - Sonstige Anpassungen"] = result[COL_ADJUSTMENTS]
     kapResult["20. Enthaltene Gewinne aus Aktienveräußerungen"] = result[COL_PROFIT_ON_SALE_STOCKS]
     kapResult["20.   - Aktien G/V (positive Beiträge)"] = result[COL_PROFIT_ON_SALE_STOCKS] 
-    kapResult["21. Enthaltene Einkünfte aus Stillhalterprämien und Gewinne aus Termingeschäften"] = result[COL_POSITIVE_VALUES_CFDS] + result[COL_POSITIVE_FEES_ON_SALE_CFDS]
-    kapResult["21.   - CFD G/V (positive Beiträge)"] = result[COL_POSITIVE_VALUES_CFDS]
+    kapResult["21. Enthaltene Einkünfte aus Stillhalterprämien und Gewinne aus Termingeschäften"] = result[COL_PROFIT_ON_SALE_CFDS] + result[COL_POSITIVE_FEES_ON_SALE_CFDS]
+    kapResult["21.   - CFD G/V (positive Beiträge)"] = result[COL_PROFIT_ON_SALE_CFDS]
     kapResult["21.   - CFD Gebühren (positive Beiträge)"] = result[COL_POSITIVE_FEES_ON_SALE_CFDS]
-    kapResult["22. Enthaltene Verluste ohne Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_FEES_ON_SALE_CFDS] # TODO!!
+    kapResult["22. Enthaltene Verluste ohne Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_NEGATIVE_DIVIDENDS_CFDS] + result[COL_NEGATIVE_FEES_ON_SALE_CFDS] + result[COL_LOSS_ON_SALE_ETFS]
     kapResult["22.   - CFD G/V (negative Beiträge)"] = result[COL_LOSS_ON_SALE_CFDS] 
-    # kapResult["22.   - CFD Dividends (negative Beiträge)"] = result[COL_NEGATIVE_DIVIDENDS_CFDS]
-    kapResult["22.   - CFD Gebühren (negative Beiträge)"] = result[COL_FEES_ON_SALE_CFDS] 
-    kapResult["22.   - ETF G/V (negative Beiträge)"] = result[COL_PROFIT_ETFS] 
+    kapResult["22.   - CFD Dividends (negative Beiträge)"] = result[COL_NEGATIVE_DIVIDENDS_CFDS]
+    kapResult["22.   - CFD Gebühren (negative Beiträge)"] = result[COL_NEGATIVE_FEES_ON_SALE_CFDS] 
+    kapResult["22.   - ETF G/V (negative Beiträge)"] = result[COL_LOSS_ON_SALE_ETFS] 
     kapResult["23. Enthaltene Verluste aus Aktienveräußerungen"] = result[COL_LOSS_ON_SALE_STOCKS]
+    kapResult["24. Verluste aus Termingeschäften"] = result[COL_LOSS_ON_SALE_CFDS] + result[COL_NEGATIVE_DIVIDENDS_CFDS] + result[COL_NEGATIVE_FEES_ON_SALE_CFDS] 
+    kapResult["24.   - CFD G/V (negative Beiträge)"] = result[COL_LOSS_ON_SALE_CFDS] 
+    kapResult["24.   - CFD Dividends (negative Beiträge)"] = result[COL_NEGATIVE_DIVIDENDS_CFDS]
+    kapResult["24.   - CFD Gebühren (negative Beiträge)"] = result[COL_NEGATIVE_FEES_ON_SALE_CFDS] 
 
     print(json.dumps(roundTo2Decimals(kapResult), ensure_ascii=False, indent=4))
     
     print("\nAnlage SO")
     soResult = {}
+    ## don't know how to calculate this:
     # soResult["10. Einnahmen aus PI-Zahlungen und Provisionen für Kundenwerbung"] = 0
     # soResult["11. Einnahmen aus Staking und Airdrops von Kryptowährungen"] = 0
     # soResult["12. Summe aus Zeilen 10 + 11"] = 0
     #Die Summe aller Schließungspreise von Trades auf Kryptowährungen und erfolgten Anpassungen hierauf
-    soResult["44. Veräußerungspreis oder an dessen Stelle tretender Wert (z. B. gemeiner Wert)"] = result[COL_CLOSING_PRICE_CRYPTO]
+    soResult["44. Veräußerungspreis oder an dessen Stelle tretender Wert (z. B. gemeiner Wert)"] = result[COL_INVERTING_CLOSE_CRYPTO]
     #Die Summe aller Eröffnungspreise von Trades auf Kryptowährungen
-    soResult["45. Anschaffungskosten (ggf. gemindert um Absetzung für Abnutzung) oder an deren Stelle tretender Wert (z. B. Teilwert, gemeiner Wert)"] = result[COL_OPENING_PRICE_CRYPTO]
-    result[COL_PROFIT_CRYPTO] = result[COL_CLOSING_PRICE_CRYPTO] - result[COL_OPENING_PRICE_CRYPTO]
-    soResult["47. Gewinn / Verlust (zu übertragen nach Zeile 48)"] = result[COL_PROFIT_CRYPTO]
+    soResult["45. Anschaffungskosten (ggf. gemindert um Absetzung für Abnutzung) oder an deren Stelle tretender Wert (z. B. Teilwert, gemeiner Wert)"] = result[COL_INVERTING_OPEN_CRYPTO]
+    # result[COL_PROFIT_CRYPTO] = result[COL_CLOSING_PRICE_CRYPTO] - result[COL_OPENING_PRICE_CRYPTO]
+    soResult["47. Gewinn / Verlust (zu übertragen nach Zeile 48)"] =  result[COL_PROFIT_CRYPTO]
 
     print(json.dumps(roundTo2Decimals(soResult), ensure_ascii=False, indent=4))
+
+    print( )
+
